@@ -15,6 +15,7 @@ int myget_time()
     return (int)(t_sec0*1000+tb_start.millitm);
 }
 
+//liheng 1206
 int main()
 {
 
