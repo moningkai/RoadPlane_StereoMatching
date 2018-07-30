@@ -14,7 +14,7 @@ int myget_time()
     time(&t_sec0);
     return (int)(t_sec0*1000+tb_start.millitm);
 }
-
+//show mnk
 int main()
 {
 
