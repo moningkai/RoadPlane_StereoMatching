@@ -1,6 +1,7 @@
 #include <iostream>
 #include <opencv2/opencv.hpp>
 #include "RoadPlane_Estimation.h"
+#include "Stereo_LaneDetection.h"
 #include <sys/timeb.h>
 
 using namespace std;
@@ -19,6 +20,8 @@ int main()
 {
 
     rm::RoadPlane_Estimation road_estimator;
+
+    Stereo_LaneDetection lane_detector;
 
     rm::Stereo_CamPara scp;
 
@@ -60,7 +63,11 @@ int main()
 
         int tstart=myget_time();
 
-        road_estimator.run_road_plane_estimation(img1,img2);//路面估计
+        //road plane estimation
+        road_estimator.run_road_plane_estimation(img1,img2);
+
+        //lane detection
+        lane_detector.run_lane_detection(road_estimator.m_undistorLimg,road_estimator.m_undistorRimg,road_estimator.m_road_HMatrix);
 
         cout<<"total:"<<myget_time()- tstart << " ms" << std::endl;
 

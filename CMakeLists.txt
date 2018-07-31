@@ -7,7 +7,7 @@ find_package(OpenCV REQUIRED)
 
 aux_source_directory(./ SOURCE_FILE)
 
-add_executable(RoadPlane_StereoMatching ${SOURCE_FILE})
+add_executable(RoadPlane_StereoMatching ${SOURCE_FILE} MyDraw.h)
 
 target_link_libraries(RoadPlane_StereoMatching ${OpenCV_LIBS})
 
@@ -16,5 +16,6 @@ target_link_libraries(RoadPlane_StereoMatching ${OpenCV_LIBS})
 #IF(DEBUG_mode)
 #ADD_DEFINITIONS(-DDEBUG_SHOW_RECTIFYIMAGE)
 ADD_DEFINITIONS(-DDEBUG_SHOW_KERPOINTMATCH)
+ADD_DEFINITIONS(-DDEBUG_SHOW_CONTOURS)
 #ADD_DEFINITIONS(-DDEBUG_SHOW_HMATRIXRESULT)
 #ENDIF()

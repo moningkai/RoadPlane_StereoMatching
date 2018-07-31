@@ -114,11 +114,11 @@ public:
     //l_desc为referrenc,r_desc为target，匹配结果>>vector<int> t_m_dest对应右点集id;
 	void match_descripter_of_Pts(cv::Mat t_l_desc, cv::Mat t_r_desc, vector<cv::DMatch> &t_l_m_dest,SPT_Type spt_type=SPT_ORB);
 
-    void match_double_Points_implement(int left_or_right,vector<cv::KeyPoint> in_ref_Pts, vector<cv::KeyPoint> in_tar_Pts,cv::Mat reference_desc,cv::Mat target_desc,vector<cv::DMatch> &m_dest,
-                                       SPT_Type spt_type=SPT_ORB);
+    void match_double_Points_implement(int left_or_right,vector<cv::KeyPoint> in_ref_Pts, vector<cv::KeyPoint> in_tar_Pts,cv::Mat reference_desc,cv::Mat target_desc,
+									   vector<vector<cv::DMatch>> &m_dest, SPT_Type spt_type=SPT_ORB);
 
 	//进行左右一致性/双向验证检测>>vector<int> t_m_dest对应右点集id;
-	void leftRightConsistency_and_FBCheck(vector<cv::DMatch> t_l_m_dest, vector<cv::DMatch> t_r_m_dest, vector<cv::DMatch> &t_l_consistency_dest);
+	void leftRightConsistency_and_FBCheck(vector<vector<cv::DMatch>> t_l_m_dest, vector<vector<cv::DMatch>> t_r_m_dest, vector<vector<cv::DMatch>> &t_l_consistency_dest);
 
 	//在已有匹配结果上，获取亚像素精度的视差
 	void get_subpixel_disparity(cv::Mat in_leftImg, cv::Mat in_rightImg, vector<cv::KeyPoint> in_l_Pts,

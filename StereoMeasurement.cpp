@@ -1,5 +1,5 @@
 #include "StereoMeasurement.h"
-
+#include "MyDraw.h"
 
 StereoMeasurement::StereoMeasurement()
 {
@@ -174,46 +174,84 @@ void StereoMeasurement::get_points_SIFTdescripter(int left_or_right, std::vector
 
 void StereoMeasurement::match_descripter_of_Pts(cv::Mat t_l_desc, cv::Mat t_r_desc, std::vector<cv::DMatch> &t_l_m_dest,SPT_Type spt_type)
 {
+    vector<vector<cv::DMatch>> temp_matchs;
     switch (spt_type)
     {
         case SPT_ORB:
-            m_DMatcher_normHammin->match(t_r_desc,t_l_desc,t_l_m_dest);
+            //m_DMatcher_normHammin->match(t_l_desc,t_r_desc,t_l_m_dest);
+            m_DMatcher_normHammin->knnMatch(t_l_desc,t_r_desc,temp_matchs,3);
             break;
         case SPT_SURF:
             break;
         case SPT_SIFT:
             break;
     }
+
+    t_l_m_dest.swap(temp_matchs[0]);
 }
 
-void StereoMeasurement::leftRightConsistency_and_FBCheck(vector<cv::DMatch> t_l_m_dest, vector<cv::DMatch> t_r_m_dest, vector<cv::DMatch> &out_matchID)
-{
+void StereoMeasurement::leftRightConsistency_and_FBCheck(vector<vector<cv::DMatch>> t_l_m_dest, vector<vector<cv::DMatch>> t_r_m_dest, vector<vector<cv::DMatch>> &out_matchID) {
     //---------------Identify left-right consistency---------------//
 
     //find max id of right key points
-    int tr_maxSize=0;
+    int tr_maxSize = 0;
 
-    for (int i = 0; i < t_r_m_dest.size(); ++i) if(t_r_m_dest[i].trainIdx>tr_maxSize) tr_maxSize=t_r_m_dest[i].trainIdx;
+    for (int i = 0; i < t_l_m_dest.size(); ++i)
+    {
+
+        for (int j = 0; j < t_l_m_dest[i].size(); ++j)
+        {
+            if (t_l_m_dest[i][j].trainIdx > tr_maxSize)
+                tr_maxSize = t_l_m_dest[i][j].trainIdx;
+
+        }//for(j)
+
+    }//for(i)
+
+    for (int i = 0; i < t_r_m_dest.size(); ++i)
+    {
+
+        for (int j = 0; j < t_r_m_dest[i].size(); ++j)
+        {
+            if (t_r_m_dest[i][j].queryIdx > tr_maxSize)
+                tr_maxSize = t_r_m_dest[i][j].queryIdx;
+
+        }//for(j)
+    }//for(i)
 
     tr_maxSize++;
 
     //create a look up table of right points
-    vector<cv::DMatch> r_cand_match;
+    vector<int> r_matchID_table(tr_maxSize,-1);
 
-    r_cand_match.resize(tr_maxSize);
-
-    for (int i = 0; i < tr_maxSize; ++i) r_cand_match[i].distance=-10000;
-
-    for (int i = 0; i < t_r_m_dest.size(); ++i) r_cand_match[t_r_m_dest[i].trainIdx]=t_r_m_dest[i];
+    for (int i = 0; i < t_r_m_dest.size(); ++i) r_matchID_table[t_r_m_dest[i][0].queryIdx]= i;
 
     //find point which fits left-right consistency
-    vector<cv::DMatch> ().swap(out_matchID);
+    vector<vector<cv::DMatch>> ().swap(out_matchID);
 
     out_matchID.reserve(t_l_m_dest.size());
 
     for (int i = 0; i < t_l_m_dest.size(); ++i)
     {
-        if(r_cand_match[t_l_m_dest[i].queryIdx].distance >= 0 && r_cand_match[t_l_m_dest[i].queryIdx].queryIdx==t_l_m_dest[i].trainIdx) out_matchID.push_back(t_l_m_dest[i]);
+        vector<cv::DMatch> temp_l; temp_l.reserve(3);
+
+        for (int j = 0; j < t_l_m_dest[i].size(); ++j)
+        {
+            if(r_matchID_table[t_l_m_dest[i][j].trainIdx]>=0)
+            {
+                int tidx=r_matchID_table[t_l_m_dest[i][j].trainIdx];
+
+                for (int k = 0; k <t_r_m_dest[tidx].size(); ++k)
+                {
+                    if(t_r_m_dest[tidx][k].trainIdx == t_l_m_dest[i][j].queryIdx) temp_l.push_back(t_l_m_dest[i][j]);
+                }//for(k)
+
+            }//if
+
+        }//for(j)
+
+        if(temp_l.size()>0) out_matchID.push_back(temp_l);
+
     }//for(i)
 
 }
@@ -272,7 +310,7 @@ void StereoMeasurement::matching_double_Points_process(vector<cv::KeyPoint> in_l
 	get_points_descripter(-1, in_l_Pts, t_out_l_desc,spt_type);//根据特征点计算描述子
 	get_points_descripter( 1, in_r_Pts, t_out_r_desc,spt_type);
 
-    std::vector<cv::DMatch> t_l_m_dest, t_r_m_dest;
+    std::vector<vector<cv::DMatch>> t_l_m_dest, t_r_m_dest,t_matchID;
 
     //left reference:find best-fit target from candidate points
     match_double_Points_implement(-1,in_l_Pts,in_r_Pts,t_out_l_desc,t_out_r_desc,t_l_m_dest,spt_type);
@@ -280,12 +318,30 @@ void StereoMeasurement::matching_double_Points_process(vector<cv::KeyPoint> in_l
     //right reference:find best-fit target from candidate points
     match_double_Points_implement( 1,in_r_Pts,in_l_Pts,t_out_r_desc,t_out_l_desc,t_r_m_dest,spt_type);
 
-	leftRightConsistency_and_FBCheck(t_l_m_dest, t_r_m_dest, out_matchID);//取交集
+	leftRightConsistency_and_FBCheck(t_l_m_dest, t_r_m_dest, t_matchID);//取交集
+
+    //find optimal matching set
+    vector<cv::DMatch> ().swap(out_matchID); out_matchID.reserve(t_matchID.size());
+
+    for (int i = 0; i < t_matchID.size(); ++i)
+    {
+        cv::DMatch tdm=t_matchID[i][0];
+
+        for (int j = 0; j < t_matchID[i].size(); ++j)
+        {
+            if(t_matchID[i][j].distance<tdm.distance) tdm=t_matchID[i][j];
+
+        }//for(j)
+
+        out_matchID.push_back(tdm);
+
+    }//for(i)
 
     //-----------------------debug----------------------//
 #ifdef DEBUG_SHOW_KERPOINTMATCH
     cv::Mat show_matching_l;
-    cv::drawMatches(m_undisRightImg,in_r_Pts,m_undisLeftImg,in_l_Pts,out_matchID,show_matching_l,cv::Scalar(0,255,0),cv::Scalar(0,0,255));
+    cv::drawMatches(m_undisLeftImg,in_l_Pts,m_undisRightImg,in_r_Pts,out_matchID,show_matching_l,cv::Scalar(0,255,0),cv::Scalar(0,0,255));
+    rm::drawVerticalMatches(m_undisLeftImg,in_l_Pts,m_undisRightImg,in_r_Pts,t_matchID[0],show_matching_l);
     cv::imshow("show_matching_l",show_matching_l);
     cv::waitKey(1);
 #endif
@@ -294,7 +350,7 @@ void StereoMeasurement::matching_double_Points_process(vector<cv::KeyPoint> in_l
 
 //train query
 void StereoMeasurement::match_double_Points_implement(int left_or_right, vector<cv::KeyPoint> in_ref_Pts, vector<cv::KeyPoint> in_tar_Pts,
-                                                      cv::Mat ref_desc,cv::Mat tar_desc,vector<cv::DMatch> &m_dest,SPT_Type spt_type){
+                                                      cv::Mat ref_desc,cv::Mat tar_desc,vector<vector<cv::DMatch>> &m_dest,SPT_Type spt_type){
     for (int i = 0; i <in_ref_Pts.size(); i++)
     {
 
@@ -347,9 +403,17 @@ void StereoMeasurement::match_double_Points_implement(int left_or_right, vector<
             //find best-fit target
             match_descripter_of_Pts(temp_l_desc, temp_r_desc, temp_m_dest,spt_type);
 
-            if(temp_m_dest.size()>0){
-                m_dest.push_back( cv::DMatch(temp_r_id[temp_m_dest[0].queryIdx],i,temp_m_dest[0].distance) );}
-            //else{m_dest.push_back(cv::DMatch(i,-1,10000.0f));}
+            if(temp_m_dest.size()>0)
+            {
+                for (int j = 0; j < temp_m_dest.size(); ++j)
+                {
+                    temp_m_dest[j].queryIdx=i;
+                    temp_m_dest[j].trainIdx=temp_r_id[temp_m_dest[j].trainIdx];
+                }//for(j)
+
+                m_dest.push_back(temp_m_dest);
+
+            }//if
 
         }//if
 
@@ -387,14 +451,6 @@ void StereoMeasurement::run_ORB_KeyPoints_detection_and_matching(vector<cv::KeyP
         //so 在路面进行特征点检测
         m_gpu_orb->detect(m_gpu_buffer.undis_LImgGrey,out_l_Pts,m_gpu_buffer.l_mask);
         m_gpu_orb->detect(m_gpu_buffer.undis_RImgGrey,out_r_Pts,m_gpu_buffer.r_mask);
-
-//#ifdef DEBUG_SHOW
-//        //可视化，显示关键点
-//        cv::Mat ShowKeypoints;
-//        drawKeypoints(m_gpu_buffer.undis_LImgGrey,out_l_Pts,ShowKeypoints,cv::Scalar(0,0,255)/*,cv::DrawMatchesFlags::DRAW_RICH_KEYPOINTS*/);
-//        imshow("leftImage关键点", ShowKeypoints);
-//        cv::waitKey(0);
-//#endif
 
         SPT_Type t_spt_type=SPT_ORB;
         matching_double_Points_process(out_l_Pts,out_r_Pts,out_l_m_dest,t_spt_type);

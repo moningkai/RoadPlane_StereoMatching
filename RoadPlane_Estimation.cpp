@@ -162,10 +162,16 @@ namespace rm
 
         }//for(i)
 
-        //l_p = H*r_p
-        out_ObjectHMatrix = cv::findHomography(temp_r_pts,temp_l_pts,cv::RANSAC,5,cv::noArray(),2000,0.99);
+        if(temp_r_pts.size()== temp_l_pts.size() && temp_r_pts.size() >= 4)
+        {
+            //l_p = H*r_p
+            out_ObjectHMatrix = cv::findHomography(temp_r_pts,temp_l_pts,cv::RANSAC,5,cv::noArray(),2000,0.99);
 
-        out_ObjectHMatrix.convertTo(out_ObjectHMatrix,CV_32FC1);
+            out_ObjectHMatrix.convertTo(out_ObjectHMatrix,CV_32FC1);
+
+        }//if
+        else out_ObjectHMatrix=cv::Mat();
+
 
 #ifdef DEBUG_SHOW_HMATRIXRESULT
         cv::Mat r_ptsM(3,temp_r_pts.size(),CV_32FC1);
@@ -205,7 +211,8 @@ namespace rm
 
     void RoadPlane_Estimation::get_object_boundry(Mat in_ObjectHMatrix, vector<cv::Point2i> &out_ObjectBoundry)
     {
-        CV_Assert(in_ObjectHMatrix.type()==CV_32FC1 && in_ObjectHMatrix.cols == 3 && in_ObjectHMatrix.rows == 3);
+        if(in_ObjectHMatrix.cols != 3 && in_ObjectHMatrix.rows != 3) return;
+        if(in_ObjectHMatrix.type()!=CV_32FC1) in_ObjectHMatrix.convertTo(in_ObjectHMatrix,CV_32FC1);
 
         //calculate remaping map_x and map_y
         cv::Size img_size=m_stereoMeasurer.m_undisLeftImg.size();
